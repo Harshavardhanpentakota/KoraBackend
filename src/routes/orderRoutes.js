@@ -5,7 +5,9 @@ const {
   getOrders,
   getOrder,
   updateOrderStatus,
-  cancelOrder
+  cancelOrder,
+  getOrderByTable,
+  processOrderPayment
 } = require('../controllers/orderController');
 const { protect } = require('../middlewares/auth');
 const { authorize } = require('../middlewares/roleCheck');
@@ -16,8 +18,10 @@ router.post('/', validate(orderValidation), createOrder);
 
 // Protected routes
 router.get('/', protect, authorize('admin', 'cashier'), getOrders);
+router.get('/table/:tableId', protect, authorize('admin', 'cashier', 'waiter'), getOrderByTable);
 router.get('/:id', protect, authorize('admin', 'cashier', 'kitchen'), getOrder);
 router.put('/:id/status', protect, authorize('admin', 'cashier'), updateOrderStatus);
+router.put('/:id/pay', protect, authorize('admin', 'cashier'), processOrderPayment);
 router.delete('/:id', protect, authorize('admin', 'cashier'), cancelOrder);
 
 module.exports = router;

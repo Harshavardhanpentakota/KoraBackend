@@ -56,11 +56,23 @@ const itemUpdateValidation = [
   body('preparationTime').optional().isInt({ min: 0 }).withMessage('Preparation time must be a positive number')
 ];
 
-// Table validations
+// Table validations for creating new tables
 const tableValidation = [
   body('tableNumber').trim().notEmpty().withMessage('Table number is required'),
+  body('name').trim().notEmpty().withMessage('Table name is required'),
   body('capacity').isInt({ min: 1 }).withMessage('Capacity must be at least 1'),
-  body('status').optional().isIn(['available', 'occupied', 'reserved', 'maintenance']).withMessage('Invalid status')
+  body('status').optional().isIn(['free', 'available', 'occupied', 'reserved', 'maintenance', 'waiting']).withMessage('Invalid status')
+];
+
+// Table validations for updating tables (all fields optional)
+const tableUpdateValidation = [
+  body('tableNumber').optional().trim().notEmpty().withMessage('Table number cannot be empty'),
+  body('name').optional().trim().notEmpty().withMessage('Table name cannot be empty'),
+  body('capacity').optional().isInt({ min: 1 }).withMessage('Capacity must be at least 1'),
+  body('status').optional().isIn(['free', 'available', 'occupied', 'reserved', 'maintenance', 'waiting']).withMessage('Invalid status'),
+  body('currentOrder').optional().isMongoId().withMessage('Invalid order ID'),
+  body('location').optional().trim(),
+  body('isActive').optional().isBoolean().withMessage('isActive must be a boolean')
 ];
 
 // Order validations
@@ -89,6 +101,7 @@ module.exports = {
   itemValidation,
   itemUpdateValidation,
   tableValidation,
+  tableUpdateValidation,
   orderValidation,
   paymentValidation
 };

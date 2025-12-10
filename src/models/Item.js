@@ -20,6 +20,18 @@ const itemSchema = new mongoose.Schema({
     required: [true, 'Please provide a price'],
     min: 0
   },
+  stock: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 0
+  },
+  threshold: {
+    type: Number,
+    required: true,
+    min: 0,
+    default: 10
+  },
   image: {
     type: String,
     default: ''
@@ -42,7 +54,14 @@ const itemSchema = new mongoose.Schema({
     trim: true
   }]
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual to check if item is low on stock
+itemSchema.virtual('isLowStock').get(function() {
+  return this.stock <= this.threshold;
 });
 
 module.exports = mongoose.model('Item', itemSchema);

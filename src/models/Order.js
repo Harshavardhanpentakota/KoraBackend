@@ -10,6 +10,10 @@ const orderSchema = new mongoose.Schema({
     ref: 'Table',
     required: false
   },
+  tableNumber: {
+    type: Number,
+    default: null
+  },
   customerName: {
     type: String,
     trim: true,
@@ -25,9 +29,13 @@ const orderSchema = new mongoose.Schema({
     enum: ['dine-in', 'takeaway', 'delivery'],
     default: 'dine-in'
   },
+  isTakeaway: {
+    type: Boolean,
+    default: false
+  },
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'preparing', 'ready', 'completed', 'cancelled'],
+    enum: ['pending', 'accepted', 'preparing', 'ready', 'completed', 'paid', 'cancelled'],
     default: 'pending'
   },
   subtotal: {
@@ -48,10 +56,27 @@ const orderSchema = new mongoose.Schema({
     required: true,
     default: 0
   },
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'card', 'upi', 'wallet', 'pending'],
+    default: 'pending'
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'paid', 'refunded'],
+    default: 'pending'
+  },
+  paidAt: {
+    type: Date
+  },
   notes: {
     type: String,
     trim: true,
     default: ''
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   acceptedBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -65,6 +90,28 @@ const orderSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Sync isTakeaway with orderType and populate tableNumber from table reference
+orderSchema.pre('save', async function(next) {
+  if (this.orderType === 'takeaway' || this.orderType === 'delivery') {
+    this.isTakeaway = true;
+  }
+  
+  // Populate tableNumber from table reference if table is provided
+  if (this.table && this.isModified('table')) {
+    try {
+      const Table = mongoose.model('Table');
+      const table = await Table.findById(this.table);
+      if (table) {
+        this.tableNumber = table.tableNumber;
+      }
+    } catch (error) {
+      console.error('Error populating tableNumber:', error);
+    }
+  }
+  
+  next();
 });
 
 // Generate order number before saving

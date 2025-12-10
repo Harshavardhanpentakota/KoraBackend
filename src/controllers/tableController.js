@@ -38,11 +38,16 @@ const getTableById = async (req, res, next) => {
 };
 
 // @desc    Get all tables
-// @route   GET /api/admin/tables
-// @access  Private/Admin
+// @route   GET /api/tables
+// @access  Public
 const getTables = async (req, res, next) => {
   try {
-    const tables = await Table.find().sort('tableNumber');
+    const tables = await Table.find()
+      .populate({
+        path: 'currentOrder',
+        select: 'orderNumber status total orderType customerName'
+      })
+      .sort('tableNumber');
     
     res.json({
       success: true,
@@ -55,11 +60,15 @@ const getTables = async (req, res, next) => {
 };
 
 // @desc    Get single table
-// @route   GET /api/admin/tables/:id
-// @access  Private/Admin
+// @route   GET /api/tables/:id
+// @access  Public
 const getTable = async (req, res, next) => {
   try {
-    const table = await Table.findById(req.params.id);
+    const table = await Table.findById(req.params.id)
+      .populate({
+        path: 'currentOrder',
+        select: 'orderNumber status total orderType customerName subtotal tax discount notes createdAt'
+      });
     
     if (!table) {
       return res.status(404).json({

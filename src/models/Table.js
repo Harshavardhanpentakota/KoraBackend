@@ -2,20 +2,30 @@ const mongoose = require('mongoose');
 
 const tableSchema = new mongoose.Schema({
   tableNumber: {
-    type: String,
+    type: Number,
     required: [true, 'Please provide a table number'],
-    unique: true,
+    unique: true
+  },
+  name: {
+    type: String,
+    required: [true, 'Please provide a table name'],
     trim: true
   },
   capacity: {
     type: Number,
     required: [true, 'Please provide table capacity'],
-    min: 1
+    min: 1,
+    default: 4
   },
   status: {
     type: String,
-    enum: ['available', 'occupied', 'reserved', 'maintenance'],
-    default: 'available'
+    enum: ['free', 'available', 'occupied', 'reserved', 'maintenance', 'waiting'],
+    default: 'free'
+  },
+  currentOrder: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Order',
+    default: null
   },
   qrCode: {
     type: String,
@@ -32,6 +42,11 @@ const tableSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Ensure capacity is set (schema default handles this now)
+tableSchema.pre('save', function(next) {
+  next();
 });
 
 module.exports = mongoose.model('Table', tableSchema);

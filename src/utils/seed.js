@@ -28,21 +28,31 @@ const seedDatabase = async () => {
     const users = await User.create([
       {
         name: 'Admin User',
+        username: 'admin',
         email: process.env.ADMIN_EMAIL || 'admin@restaurant.com',
         password: process.env.ADMIN_PASSWORD || 'admin123',
         role: 'admin'
       },
       {
         name: 'Cashier User',
+        username: 'cashier',
         email: 'cashier@restaurant.com',
         password: 'cashier123',
         role: 'cashier'
       },
       {
         name: 'Kitchen User',
+        username: 'kitchen',
         email: 'kitchen@restaurant.com',
         password: 'kitchen123',
         role: 'kitchen'
+      },
+      {
+        name: 'Waiter User',
+        username: 'waiter',
+        email: 'waiter@restaurant.com',
+        password: 'waiter123',
+        role: 'waiter'
       }
     ]);
 
@@ -94,6 +104,8 @@ const seedDatabase = async () => {
         description: 'Rich and bold single shot of Italian espresso',
         category: categories[0]._id,
         price: 80,
+        stock: 100,
+        threshold: 20,
         isVeg: true,
         preparationTime: 3,
         tags: ['popular', 'strong', 'classic']
@@ -103,6 +115,8 @@ const seedDatabase = async () => {
         description: 'Double shot of intense espresso',
         category: categories[0]._id,
         price: 120,
+        stock: 100,
+        threshold: 20,
         isVeg: true,
         preparationTime: 3,
         tags: ['strong', 'intense']
@@ -112,6 +126,8 @@ const seedDatabase = async () => {
         description: 'Perfect blend of espresso, steamed milk, and foam',
         category: categories[0]._id,
         price: 150,
+        stock: 150,
+        threshold: 30,
         isVeg: true,
         preparationTime: 5,
         tags: ['popular', 'creamy', 'classic']
@@ -121,6 +137,8 @@ const seedDatabase = async () => {
         description: 'Smooth espresso with steamed milk and light foam',
         category: categories[0]._id,
         price: 160,
+        stock: 150,
+        threshold: 30,
         isVeg: true,
         preparationTime: 5,
         tags: ['popular', 'smooth', 'mild']
@@ -448,16 +466,18 @@ const seedDatabase = async () => {
     // Create tables
     console.log('Creating tables...');
     const tables = await Table.create([
-      { tableNumber: 'T1', capacity: 2, location: 'Window side' },
-      { tableNumber: 'T2', capacity: 4, location: 'Center' },
-      { tableNumber: 'T3', capacity: 4, location: 'Corner' },
-      { tableNumber: 'T4', capacity: 6, location: 'Private room' },
-      { tableNumber: 'T5', capacity: 2, location: 'Bar area' },
-      { tableNumber: 'T6', capacity: 4, location: 'Patio' },
-      { tableNumber: 'T7', capacity: 8, location: 'Family section' },
-      { tableNumber: 'T8', capacity: 2, location: 'Window side' },
-      { tableNumber: 'T9', capacity: 4, location: 'Center' },
-      { tableNumber: 'T10', capacity: 6, location: 'VIP section' }
+      { tableNumber: 1, name: 'Table 1', capacity: 2, location: 'Window side', status: 'free' },
+      { tableNumber: 2, name: 'Table 2', capacity: 4, location: 'Center', status: 'free' },
+      { tableNumber: 3, name: 'Table 3', capacity: 4, location: 'Corner', status: 'free' },
+      { tableNumber: 4, name: 'Table 4', capacity: 6, location: 'Private room', status: 'free' },
+      { tableNumber: 5, name: 'Table 5', capacity: 2, location: 'Bar area', status: 'free' },
+      { tableNumber: 6, name: 'Table 6', capacity: 4, location: 'Patio', status: 'free' },
+      { tableNumber: 7, name: 'Table 7', capacity: 8, location: 'Family section', status: 'free' },
+      { tableNumber: 8, name: 'Table 8', capacity: 2, location: 'Window side', status: 'free' },
+      { tableNumber: 9, name: 'Table 9', capacity: 4, location: 'Center', status: 'free' },
+      { tableNumber: 10, name: 'Table 10', capacity: 6, location: 'VIP section', status: 'free' },
+      { tableNumber: 11, name: 'Table 11', capacity: 4, location: 'Garden area', status: 'free' },
+      { tableNumber: 12, name: 'Table 12', capacity: 2, location: 'Quiet corner', status: 'free' }
     ]);
 
     console.log('Tables created:', tables.length);

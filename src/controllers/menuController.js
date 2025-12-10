@@ -128,10 +128,39 @@ const deleteItem = async (req, res, next) => {
   }
 };
 
+// @desc    Get low stock items
+// @route   GET /api/menu/low-stock
+// @access  Private/Admin/Cashier
+const getLowStockItems = async (req, res, next) => {
+  try {
+    // Find items where stock is less than or equal to threshold
+    const items = await Item.find({
+      $expr: { $lte: ['$stock', '$threshold'] }
+    })
+      .populate('category', 'name')
+      .sort('stock');
+
+    // Add isLowStock virtual to each item
+    const itemsWithLowStock = items.map(item => {
+      const itemObj = item.toObject({ virtuals: true });
+      return itemObj;
+    });
+
+    res.json({
+      success: true,
+      count: itemsWithLowStock.length,
+      data: itemsWithLowStock
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getItems,
   getItem,
   createItem,
   updateItem,
-  deleteItem
+  deleteItem,
+  getLowStockItems
 };

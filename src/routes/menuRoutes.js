@@ -5,7 +5,8 @@ const {
   getItem,
   createItem,
   updateItem,
-  deleteItem
+  deleteItem,
+  getLowStockItems
 } = require('../controllers/menuController');
 const { protect } = require('../middlewares/auth');
 const { authorize } = require('../middlewares/roleCheck');
@@ -13,6 +14,10 @@ const { validate, itemValidation, itemUpdateValidation } = require('../middlewar
 
 // Public routes - menu viewing
 router.get('/', getItems);
+
+// Low stock route - must come before /:id to avoid conflict
+router.get('/low-stock', protect, authorize('admin', 'cashier'), getLowStockItems);
+
 router.get('/:id', getItem);
 
 // Admin and Cashier routes - menu management

@@ -7,6 +7,12 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Please provide a name'],
     trim: true
   },
+  username: {
+    type: String,
+    unique: true,
+    trim: true,
+    sparse: true
+  },
   email: {
     type: String,
     required: [true, 'Please provide an email'],
@@ -22,7 +28,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'cashier', 'kitchen'],
+    enum: ['admin', 'cashier', 'kitchen', 'waiter'],
     default: 'cashier'
   },
   isActive: {
@@ -31,6 +37,14 @@ const userSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
+});
+
+// Set username from name if not provided
+userSchema.pre('save', function(next) {
+  if (!this.username && this.name) {
+    this.username = this.name.toLowerCase().replace(/\s+/g, '');
+  }
+  next();
 });
 
 // Hash password before saving
@@ -47,6 +61,11 @@ userSchema.pre('save', async function(next) {
 // Method to compare passwords
 userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Alias method for compatibility
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
 module.exports = mongoose.model('User', userSchema);

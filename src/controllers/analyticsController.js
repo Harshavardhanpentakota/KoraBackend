@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const OrderItem = require('../models/OrderItem');
 const Item = require('../models/Item');
+const Transaction = require('../models/Transaction');
 
 // @desc    Get dashboard analytics
 // @route   GET /api/admin/analytics/dashboard
@@ -267,15 +268,26 @@ const getOrderTypesDistribution = async (req, res, next) => {
 // @access  Private/Admin
 const getCompleteAnalytics = async (req, res, next) => {
   try {
-    const { days = 7 } = req.query;
-    const daysAgo = new Date();
-    daysAgo.setDate(daysAgo.getDate() - parseInt(days));
-    daysAgo.setHours(0, 0, 0, 0);
+    const { days = 7, startDate, endDate } = req.query;
+    
+    let dateQuery = {};
+    
+    if (startDate && endDate) {
+      dateQuery = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    } else {
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - parseInt(days));
+      daysAgo.setHours(0, 0, 0, 0);
+      dateQuery = { $gte: daysAgo };
+    }
 
     // Get completed orders
     const orders = await Order.find({
-      status: 'completed',
-      createdAt: { $gte: daysAgo }
+      status: { $in: ['completed', 'paid'] },
+      createdAt: dateQuery
     });
 
     const orderIds = orders.map(order => order._id);
@@ -351,6 +363,67 @@ const getCompleteAnalytics = async (req, res, next) => {
       percentage: ((count / orders.length) * 100).toFixed(2)
     }));
 
+    // 6. Payment method breakdown
+    const paymentBreakdown = {};
+    orders.forEach(order => {
+      if (order.paymentMethod && order.paymentMethod !== 'pending') {
+        if (!paymentBreakdown[order.paymentMethod]) {
+          paymentBreakdown[order.paymentMethod] = { count: 0, amount: 0 };
+        }
+        paymentBreakdown[order.paymentMethod].count += 1;
+        paymentBreakdown[order.paymentMethod].amount += order.total;
+      }
+    });
+
+    const paymentMethodBreakdown = Object.entries(paymentBreakdown).map(([method, data]) => ({
+      _id: method,
+      count: data.count,
+      amount: data.amount
+    }));
+
+    // 7. Hourly revenue (for today or latest day)
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
+    const todayOrders = orders.filter(order => new Date(order.createdAt) >= startOfToday);
+    
+    const hourlyData = {};
+    todayOrders.forEach(order => {
+      const hour = new Date(order.createdAt).getHours();
+      if (!hourlyData[hour]) {
+        hourlyData[hour] = { hour, revenue: 0, orders: 0 };
+      }
+      hourlyData[hour].revenue += order.total;
+      hourlyData[hour].orders += 1;
+    });
+    const hourlyRevenue = Object.values(hourlyData).sort((a, b) => a.hour - b.hour);
+
+    // 8. Category-wise sales
+    const categoryItems = await OrderItem.find({
+      order: { $in: orderIds }
+    }).populate({
+      path: 'item',
+      select: 'name category',
+      populate: { path: 'category', select: 'name' }
+    });
+
+    const categorySales = {};
+    categoryItems.forEach(orderItem => {
+      if (orderItem.item && orderItem.item.category) {
+        const categoryName = orderItem.item.category.name || 'Uncategorized';
+        if (!categorySales[categoryName]) {
+          categorySales[categoryName] = { totalSales: 0, count: 0 };
+        }
+        categorySales[categoryName].totalSales += orderItem.price * orderItem.quantity;
+        categorySales[categoryName].count += orderItem.quantity;
+      }
+    });
+
+    const categoryWiseSales = Object.entries(categorySales).map(([category, data]) => ({
+      _id: category,
+      totalSales: data.totalSales,
+      count: data.count
+    }));
+
     res.json({
       success: true,
       data: {
@@ -370,7 +443,10 @@ const getCompleteAnalytics = async (req, res, next) => {
         dailySales: dailySales,
         topItemsByQuantity: topItemsByQuantity,
         topItemsByRevenue: topItemsByRevenue,
-        orderTypesDistribution: orderTypesDistribution
+        orderTypesDistribution: orderTypesDistribution,
+        paymentMethodBreakdown: paymentMethodBreakdown,
+        hourlyRevenue: hourlyRevenue,
+        categoryWiseSales: categoryWiseSales
       }
     });
   } catch (error) {
