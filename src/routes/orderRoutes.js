@@ -4,24 +4,30 @@ const {
   createOrder,
   getOrders,
   getOrder,
+  getOrderStatus,
+  updateOrder,
   updateOrderStatus,
   cancelOrder,
   getOrderByTable,
+  createPayment,
   processOrderPayment
 } = require('../controllers/orderController');
 const { protect } = require('../middlewares/auth');
 const { authorize } = require('../middlewares/roleCheck');
 const { validate, orderValidation } = require('../middlewares/validation');
 
-// Public route - create order
+// Public routes
 router.post('/', validate(orderValidation), createOrder);
+router.put('/:id', updateOrder);
+router.get('/', getOrders);
+router.get('/status/:id', getOrderStatus);
+router.post('/:id/payment/create', createPayment);
+router.put('/:id/pay', processOrderPayment);
+router.delete('/:id', cancelOrder);
 
 // Protected routes
-router.get('/', protect, authorize('admin', 'cashier'), getOrders);
 router.get('/table/:tableId', protect, authorize('admin', 'cashier', 'waiter'), getOrderByTable);
 router.get('/:id', protect, authorize('admin', 'cashier', 'kitchen'), getOrder);
 router.put('/:id/status', protect, authorize('admin', 'cashier'), updateOrderStatus);
-router.put('/:id/pay', protect, authorize('admin', 'cashier'), processOrderPayment);
-router.delete('/:id', protect, authorize('admin', 'cashier'), cancelOrder);
 
 module.exports = router;

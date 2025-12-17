@@ -78,6 +78,11 @@ const orderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  orderSource: {
+    type: String,
+    enum: ['customer', 'cashier', 'admin'],
+    default: 'customer'
+  },
   acceptedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

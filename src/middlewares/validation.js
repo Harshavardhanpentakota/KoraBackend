@@ -70,7 +70,11 @@ const tableUpdateValidation = [
   body('name').optional().trim().notEmpty().withMessage('Table name cannot be empty'),
   body('capacity').optional().isInt({ min: 1 }).withMessage('Capacity must be at least 1'),
   body('status').optional().isIn(['free', 'available', 'occupied', 'reserved', 'maintenance', 'waiting']).withMessage('Invalid status'),
-  body('currentOrder').optional().isMongoId().withMessage('Invalid order ID'),
+  body('currentOrder').optional({ nullable: true }).custom((value) => {
+    if (value === null || value === '') return true;
+    // Check if it's a valid MongoDB ObjectId
+    return /^[0-9a-fA-F]{24}$/.test(value);
+  }).withMessage('Invalid order ID'),
   body('location').optional().trim(),
   body('isActive').optional().isBoolean().withMessage('isActive must be a boolean')
 ];
