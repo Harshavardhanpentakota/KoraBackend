@@ -40,7 +40,9 @@ const categoryValidation = [
 // Item validations
 const itemValidation = [
   body('name').trim().notEmpty().withMessage('Item name is required'),
-  body('category').notEmpty().withMessage('Category is required'),
+  body('category')
+    .notEmpty().withMessage('Category is required')
+    .isMongoId().withMessage('Invalid category ID format'),
   body('price').isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('isVeg').optional().isBoolean().withMessage('isVeg must be a boolean'),
   body('preparationTime').optional().isInt({ min: 0 }).withMessage('Preparation time must be a positive number')
@@ -49,7 +51,10 @@ const itemValidation = [
 // Item update validations (all fields optional)
 const itemUpdateValidation = [
   body('name').optional().trim().notEmpty().withMessage('Item name cannot be empty'),
-  body('category').optional().notEmpty().withMessage('Category cannot be empty'),
+  body('category')
+    .optional()
+    .notEmpty().withMessage('Category cannot be empty')
+    .isMongoId().withMessage('Invalid category ID format'),
   body('price').optional().isFloat({ min: 0 }).withMessage('Price must be a positive number'),
   body('isVeg').optional().isBoolean().withMessage('isVeg must be a boolean'),
   body('isAvailable').optional().isBoolean().withMessage('isAvailable must be a boolean'),
