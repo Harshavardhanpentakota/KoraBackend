@@ -1,4 +1,6 @@
 const Item = require('../models/Item');
+const path = require('path');
+const fs = require('fs');
 
 // @desc    Get all items
 // @route   GET /api/menu
@@ -64,7 +66,14 @@ const getItem = async (req, res, next) => {
 // @access  Private/Admin
 const createItem = async (req, res, next) => {
   try {
-    const item = await Item.create(req.body);
+    const itemData = { ...req.body };
+    
+    // If image was uploaded, add the image path
+    if (req.file) {
+      itemData.image = `/images/${req.file.filename}`;
+    }
+    
+    const item = await Item.create(itemData);
     await item.populate('category', 'name');
     
     res.status(201).json({
@@ -72,6 +81,13 @@ const createItem = async (req, res, next) => {
       data: item
     });
   } catch (error) {
+    // If there's an error and a file was uploaded, delete it
+    if (req.file) {
+      const filePath = path.join(__dirname, '../../public/images', req.file.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
     next(error);
   }
 };
@@ -81,24 +97,55 @@ const createItem = async (req, res, next) => {
 // @access  Private/Admin
 const updateItem = async (req, res, next) => {
   try {
-    const item = await Item.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    ).populate('category', 'name');
+    const existingItem = await Item.findById(req.params.id);
     
-    if (!item) {
+    if (!existingItem) {
+      // If item not found and file was uploaded, delete it
+      if (req.file) {
+        const filePath = path.join(__dirname, '../../public/images', req.file.filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
       return res.status(404).json({
         success: false,
         message: 'Item not found'
       });
     }
+    
+    const updateData = { ...req.body };
+    
+    // If new image was uploaded
+    if (req.file) {
+      // Delete old image if it exists
+      if (existingItem.image) {
+        const oldImagePath = path.join(__dirname, '../../public', existingItem.image);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+        }
+      }
+      // Set new image path
+      updateData.image = `/images/${req.file.filename}`;
+    }
+    
+    const item = await Item.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).populate('category', 'name');
 
     res.json({
       success: true,
       data: item
     });
   } catch (error) {
+    // If there's an error and a file was uploaded, delete it
+    if (req.file) {
+      const filePath = path.join(__dirname, '../../public/images', req.file.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
     next(error);
   }
 };
@@ -115,6 +162,14 @@ const deleteItem = async (req, res, next) => {
         success: false,
         message: 'Item not found'
       });
+    }
+    
+    // Delete associated image if it exists
+    if (item.image) {
+      const imagePath = path.join(__dirname, '../../public', item.image);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
     }
 
     await item.deleteOne();
