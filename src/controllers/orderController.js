@@ -44,6 +44,10 @@ const createOrder = async (req, res, next) => {
     // Group items by their category's belongsTo field
     const itemsByKitchen = {};
     
+    // Coffee/Tea categories and items that should go to coffee-vendor
+    const coffeeVendorCategories = ['hot coffee', 'cold coffee', 'tea'];
+    const coffeeVendorItems = ['coffee', 'cappuccino', 'espresso', 'latte', 'mocha', 'americano'];
+    
     for (const orderItem of items) {
       const item = await Item.findById(orderItem.item).populate('category', 'name belongsTo');
       
@@ -62,7 +66,22 @@ const createOrder = async (req, res, next) => {
       }
 
       // Determine which kitchen this item belongs to
-      const kitchen = item.category?.belongsTo || belongsTo || 'normal-kitchen';
+      let kitchen = item.category?.belongsTo || 'normal-kitchen';
+      
+      // If category doesn't have belongsTo set, determine by category name or item name
+      if (!item.category?.belongsTo) {
+        const categoryNameLower = item.category?.name?.toLowerCase() || '';
+        const itemNameLower = item.name.toLowerCase();
+        
+        // Check if category name matches coffee vendor categories (exact match)
+        if (coffeeVendorCategories.some(coffeeCategory => categoryNameLower === coffeeCategory)) {
+          kitchen = 'coffee-vendor';
+        }
+        // Check if item name contains coffee-related keywords
+        else if (coffeeVendorItems.some(coffeeItem => itemNameLower.includes(coffeeItem))) {
+          kitchen = 'coffee-vendor';
+        }
+      }
       
       if (!itemsByKitchen[kitchen]) {
         itemsByKitchen[kitchen] = [];
