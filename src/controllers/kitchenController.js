@@ -6,7 +6,7 @@ const OrderItem = require('../models/OrderItem');
 // @access  Private/Kitchen/Admin
 const getKitchenOrders = async (req, res, next) => {
   try {
-    const { status } = req.query;
+    const { status, belongsTo } = req.query;
     
     let query = {
       status: { $in: ['pending', 'accepted', 'preparing'] }
@@ -14,6 +14,12 @@ const getKitchenOrders = async (req, res, next) => {
     
     if (status) {
       query.status = status;
+    }
+    
+    if (belongsTo) {
+      // Support multiple belongsTo values (comma-separated)
+      const belongsToArray = belongsTo.split(',').map(s => s.trim());
+      query.belongsTo = { $in: belongsToArray };
     }
     
     const orders = await Order.find(query)
@@ -48,12 +54,21 @@ const getKitchenOrders = async (req, res, next) => {
 // @access  Private/Kitchen/Admin
 const getKitchenOrderItems = async (req, res, next) => {
   try {
-    const { status } = req.query;
+    const { status, belongsTo } = req.query;
+    
+    // Build query for orders
+    let orderQuery = {
+      status: { $in: ['pending', 'accepted', 'preparing'] }
+    };
+    
+    if (belongsTo) {
+      // Support multiple belongsTo values (comma-separated)
+      const belongsToArray = belongsTo.split(',').map(s => s.trim());
+      orderQuery.belongsTo = { $in: belongsToArray };
+    }
     
     // Get orders that are pending, accepted or preparing
-    const orders = await Order.find({
-      status: { $in: ['pending', 'accepted', 'preparing'] }
-    }).select('_id orderNumber table');
+    const orders = await Order.find(orderQuery).select('_id orderNumber table');
     
     const orderIds = orders.map(o => o._id);
     

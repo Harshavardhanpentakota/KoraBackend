@@ -83,6 +83,12 @@ const orderSchema = new mongoose.Schema({
     enum: ['customer', 'cashier', 'admin'],
     default: 'customer'
   },
+  belongsTo: {
+    type: String,
+    enum: ['normal-kitchen', 'coffee-vendor', 'bar', 'bakery'],
+    default: 'normal-kitchen',
+    trim: true
+  },
   acceptedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

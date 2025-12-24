@@ -9,46 +9,10 @@ const Transaction = require('../models/Transaction');
 // @access  Public
 const createOrder = async (req, res, next) => {
   try {
-    const { items, table, customerName, customerPhone, orderType, notes, orderSource } = req.body;
+    const { items, table, customerName, customerPhone, orderType, notes, orderSource, belongsTo } = req.body;
 
     // Determine order source (customer = self-service, cashier = POS)
     const source = orderSource || 'customer';
-
-    // Validate items and calculate totals
-    let subtotal = 0;
-    const orderItems = [];
-
-    for (const orderItem of items) {
-      const item = await Item.findById(orderItem.item);
-      
-      if (!item) {
-        return res.status(404).json({
-          success: false,
-          message: `Item with id ${orderItem.item} not found`
-        });
-      }
-
-      if (!item.isAvailable) {
-        return res.status(400).json({
-          success: false,
-          message: `Item ${item.name} is not available`
-        });
-      }
-
-      const itemTotal = item.price * orderItem.quantity;
-      subtotal += itemTotal;
-
-      orderItems.push({
-        item: item._id,
-        quantity: orderItem.quantity,
-        price: item.price,
-        notes: orderItem.notes || ''
-      });
-    }
-
-    // Calculate tax and total (assuming 5% tax)
-    const tax = subtotal * 0.05;
-    const total = subtotal + tax;
 
     // Only validate and lock table for CASHIER orders
     if (source === 'cashier' && table && (orderType === 'dine-in' || !orderType)) {
@@ -77,52 +41,107 @@ const createOrder = async (req, res, next) => {
       }
     }
 
-    // Create order
-    const order = await Order.create({
-      customerName,
-      customerPhone,
-      table,
-      orderType: orderType || 'dine-in',
-      orderSource: source,
-      subtotal,
-      tax,
-      total,
-      notes
-    });
+    // Group items by their category's belongsTo field
+    const itemsByKitchen = {};
+    
+    for (const orderItem of items) {
+      const item = await Item.findById(orderItem.item).populate('category', 'name belongsTo');
+      
+      if (!item) {
+        return res.status(404).json({
+          success: false,
+          message: `Item with id ${orderItem.item} not found`
+        });
+      }
 
-    // Create order items
-    for (const item of orderItems) {
-      await OrderItem.create({
-        order: order._id,
-        ...item
+      if (!item.isAvailable) {
+        return res.status(400).json({
+          success: false,
+          message: `Item ${item.name} is not available`
+        });
+      }
+
+      // Determine which kitchen this item belongs to
+      const kitchen = item.category?.belongsTo || belongsTo || 'normal-kitchen';
+      
+      if (!itemsByKitchen[kitchen]) {
+        itemsByKitchen[kitchen] = [];
+      }
+
+      itemsByKitchen[kitchen].push({
+        item: item._id,
+        quantity: orderItem.quantity,
+        price: item.price,
+        notes: orderItem.notes || ''
       });
     }
 
-    // Only lock table for CASHIER orders
+    // Create separate orders for each kitchen
+    const createdOrders = [];
+    
+    for (const [kitchen, kitchenItems] of Object.entries(itemsByKitchen)) {
+      // Calculate subtotal for this kitchen's items
+      let subtotal = 0;
+      for (const orderItem of kitchenItems) {
+        subtotal += orderItem.price * orderItem.quantity;
+      }
+
+      // Calculate tax and total (assuming 5% tax)
+      const tax = subtotal * 0.05;
+      const total = subtotal + tax;
+
+      // Create order for this kitchen
+      const order = await Order.create({
+        customerName,
+        customerPhone,
+        table,
+        orderType: orderType || 'dine-in',
+        orderSource: source,
+        belongsTo: kitchen,
+        subtotal,
+        tax,
+        total,
+        notes
+      });
+
+      // Create order items for this kitchen
+      for (const item of kitchenItems) {
+        await OrderItem.create({
+          order: order._id,
+          ...item
+        });
+      }
+
+      // Fetch complete order with items
+      const completeOrder = await Order.findById(order._id)
+        .populate('table', 'tableNumber')
+        .populate({
+          path: 'acceptedBy',
+          select: 'name email'
+        });
+
+      const items_data = await OrderItem.find({ order: order._id })
+        .populate('item', 'name price');
+
+      createdOrders.push({
+        order: completeOrder,
+        items: items_data
+      });
+    }
+
+    // Only lock table for CASHIER orders (use first order ID)
     if (source === 'cashier' && table && (orderType === 'dine-in' || !orderType)) {
       await Table.findByIdAndUpdate(table, { 
         status: 'occupied',
-        currentOrder: order._id
+        currentOrder: createdOrders[0].order._id
       });
     }
 
-    // Fetch complete order with items
-    const completeOrder = await Order.findById(order._id)
-      .populate('table', 'tableNumber')
-      .populate({
-        path: 'acceptedBy',
-        select: 'name email'
-      });
-
-    const items_data = await OrderItem.find({ order: order._id })
-      .populate('item', 'name price');
-
     res.status(201).json({
       success: true,
-      data: {
-        order: completeOrder,
-        items: items_data
-      }
+      message: createdOrders.length > 1 ? `Order split into ${createdOrders.length} orders for different kitchens` : 'Order created successfully',
+      count: createdOrders.length,
+      data: createdOrders
     });
   } catch (error) {
     next(error);
@@ -134,7 +153,7 @@ const createOrder = async (req, res, next) => {
 // @access  Private/Admin
 const getOrders = async (req, res, next) => {
   try {
-    const { status, orderType, isTakeaway, startDate, endDate } = req.query;
+    const { status, orderType, isTakeaway, startDate, endDate, belongsTo } = req.query;
     
     let query = {};
     
@@ -146,6 +165,12 @@ const getOrders = async (req, res, next) => {
     
     if (orderType) {
       query.orderType = orderType;
+    }
+    
+    if (belongsTo) {
+      // Support multiple belongsTo values (comma-separated)
+      const belongsToArray = belongsTo.split(',').map(s => s.trim());
+      query.belongsTo = { $in: belongsToArray };
     }
     
     if (isTakeaway !== undefined) {
